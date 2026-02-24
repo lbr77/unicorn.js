@@ -30,8 +30,25 @@ jobs:
         with:
           version: 2.0.21
 
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential make python-is-python3
+
+      - name: Install global CLI dependencies
+        run: npm install -g grunt-cli
+
       - name: Install JavaScript dependencies
-        run: npm ci
+        run: npm ci --include=dev
+
+      - name: Verify toolchain
+        run: |
+          python --version
+          python3 --version
+          node --version
+          npm --version
+          emcc -v
+          grunt --version
 
       - name: Build unicorn.js
         run: npm run build
