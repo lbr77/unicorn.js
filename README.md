@@ -44,16 +44,17 @@ var r1 = e.reg_read_i32(uc.ARM_REG_R1);  // 0x333
 ```
 
 ## Building
-To build the Unicorn.js library, clone the *master* branch of this repository on a Linux machine, and do the following:
+Unicorn.js now builds Unicorn via CMake, following Unicorn's `docs/COMPILE.md` workflow.
 
-1. Initialize the original Unicorn submodule: `git submodule update --init`.
-
-2. Install latest [Emscripten SDK 2.0.21+](https://emscripten.org/docs/getting_started/downloads.html). Follow the respective instructions and make sure all environment variables are configured correctly.
-
-3. Install the latest [Python 3.8+](https://www.python.org/downloads/). Make sure both `python3` and `python` are callable. You can either setup alias or `apt install python-is-python3`
-
-3. Install the development dependencies with: `npm install --also=dev`.
-
-4. Install grunt with: `npm install -g grunt`
-
-5. Finally, build the source with: `grunt build`.
+1. Initialize and update the Unicorn submodule:
+   - `git submodule update --init --recursive`
+   - `git submodule update --remote --recursive`
+2. Install Unicorn native build dependencies (`cmake`, `pkg-config`, `make`, C compiler toolchain).
+3. Install [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) and activate it (`emcmake` and `emcc` must be in `PATH`).
+4. Install [Python 3.8+](https://www.python.org/downloads/) (both `python3` and `python` callable).
+5. Install JavaScript dependencies and grunt CLI:
+   - `npm ci --include=dev`
+   - `npm install -g grunt-cli`
+6. Build:
+   - `grunt build`
+   - (optional) `grunt release` for all configured architectures.
