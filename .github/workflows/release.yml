@@ -1,12 +1,23 @@
-name: Build
+name: Release
 
 on:
-  push:
-    paths-ignore:
-      - ".github/**"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v1.2.3)"
+        required: true
+        type: string
+      release_name:
+        description: "Release name"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
-  compile:
+  release:
     runs-on: ubuntu-latest
 
     steps:
@@ -40,21 +51,14 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci --include=dev
 
-      - name: Verify toolchain
-        run: |
-          python --version
-          python3 --version
-          node --version
-          npm --version
-          emcc -v
-          grunt --version
-
       - name: Build unicorn.js
-        run: env -u NODE EM_NODE_JS="$(which node)" npm run build
+        run: env -u NODE EM_NODE_JS="$(which node)" npm run release
 
-      - name: Upload dist artifacts
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
         with:
-          name: unicorn-dist
-          path: dist/
-          if-no-files-found: error
+          tag_name: ${{ inputs.tag_name }}
+          name: ${{ inputs.release_name || inputs.tag_name }}
+          generate_release_notes: true
+          files: |
+            dist/**
