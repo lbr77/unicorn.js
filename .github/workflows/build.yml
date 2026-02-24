@@ -51,7 +51,7 @@ jobs:
           grunt --version
 
       - name: Build unicorn.js
-        run: npm run build
+        run: env -u NODE EM_NODE_JS="$(which node)" npm run build
 
       - name: Upload dist artifacts
         uses: actions/upload-artifact@v4

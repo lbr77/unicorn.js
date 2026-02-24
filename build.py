@@ -103,6 +103,34 @@ def suffix_for(targets):
     return "-" + "-".join(sorted(targets))
 
 
+def create_emcc_host_wrapper(build_dir):
+    emcc = shutil.which("emcc")
+    if not emcc:
+        raise RuntimeError("emcc not found. Please install and activate Emscripten SDK first.")
+
+    wrapper = build_dir / "emcc-host-wrapper.sh"
+    script = f"""#!/usr/bin/env bash
+set -euo pipefail
+REAL_EMCC={json.dumps(emcc)}
+has_dm=0
+has_e=0
+for arg in "$@"; do
+  if [[ "$arg" == "-dM" ]]; then
+    has_dm=1
+  elif [[ "$arg" == "-E" ]]; then
+    has_e=1
+  fi
+done
+if [[ $has_dm -eq 1 && $has_e -eq 1 ]]; then
+  exec "$REAL_EMCC" -U__x86_64__ -U__x86_64 -U__amd64__ -U__amd64 -D__i386__ "$@"
+fi
+exec "$REAL_EMCC" "$@"
+"""
+    wrapper.write_text(script, encoding="utf-8")
+    wrapper.chmod(0o755)
+    return wrapper
+
+
 def generate_constants():
     output = SRC_DIR / "unicorn-constants.js"
     with output.open("w", encoding="utf-8") as out:
@@ -134,6 +162,8 @@ def configure_and_build_unicorn(targets):
     if not emcmake:
         raise RuntimeError("emcmake not found. Please install and activate Emscripten SDK first.")
 
+    host_wrapper = create_emcc_host_wrapper(build_dir)
+
     cmake_cmd = [
         emcmake,
         "cmake",
@@ -143,6 +173,7 @@ def configure_and_build_unicorn(targets):
         "-DUNICORN_BUILD_TESTS=OFF",
         "-DUNICORN_INSTALL=OFF",
         "-DUNICORN_LEGACY_STATIC_ARCHIVE=ON",
+        f"-DCMAKE_C_COMPILER={host_wrapper}",
     ]
     if targets:
         cmake_cmd.append("-DUNICORN_ARCH=" + ";".join(sorted(targets)))
