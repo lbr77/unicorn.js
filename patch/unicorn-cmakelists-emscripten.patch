@@ -1,0 +1,32 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 033db096..c768ab89 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -165,7 +165,9 @@ if(MSVC)
+         string(REGEX REPLACE "[/-]M[TD]d?" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+     endif()
+ else()
+-    if(MINGW)
++    if(EMSCRIPTEN)
++        set(UNICORN_TARGET_ARCH "i386")
++    elseif(MINGW)
+         execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+             OUTPUT_VARIABLE UC_COMPILER_VERSION)
+ 
+@@ -374,10 +376,16 @@ else()
+     #     ${TARGET_LIST}
+     #     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}"
+     # )
++    set(QEMU_CONFIGURE_EXTRA "")
++    if(EMSCRIPTEN)
++        set(QEMU_CONFIGURE_EXTRA --cpu=i386 --disable-stack-protector)
++    endif()
++
+     execute_process(COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/qemu/configure
+         --cc=${CMAKE_C_COMPILER}
+         ${EXTRA_CFLAGS}
+         ${TARGET_LIST}
++        ${QEMU_CONFIGURE_EXTRA}
+         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+     )
+     execute_process(COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/qemu/scripts/create_config

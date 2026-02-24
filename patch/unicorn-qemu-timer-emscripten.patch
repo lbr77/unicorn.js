@@ -1,0 +1,22 @@
+diff --git a/qemu/include/qemu/timer.h b/qemu/include/qemu/timer.h
+index 41e66a78..e6d714c6 100644
+--- a/qemu/include/qemu/timer.h
++++ b/qemu/include/qemu/timer.h
+@@ -878,7 +878,7 @@ static inline int64_t cpu_get_host_ticks(void)
+     return retval;
+ }
+ 
+-#elif defined(__i386__)
++#elif defined(__i386__) && !defined(__EMSCRIPTEN__)
+ 
+ static inline int64_t cpu_get_host_ticks(void)
+ {
+@@ -891,7 +891,7 @@ static inline int64_t cpu_get_host_ticks(void)
+ #endif
+ }
+ 
+-#elif defined(__x86_64__)
++#elif defined(__x86_64__) && !defined(__EMSCRIPTEN__)
+ 
+ static inline int64_t cpu_get_host_ticks(void)
+ {

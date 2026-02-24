@@ -79,11 +79,19 @@ SUPPORTED_ARCHES = {
 ROOT_DIR = Path(__file__).resolve().parent
 UNICORN_DIR = ROOT_DIR / "unicorn"
 SRC_DIR = ROOT_DIR / "src"
+PATCH_DIR = ROOT_DIR / "patch"
+
+UNICORN_PATCHES = [
+    PATCH_DIR / "unicorn-cmakelists-emscripten.patch",
+    PATCH_DIR / "unicorn-qemu-configure-emscripten.patch",
+    PATCH_DIR / "unicorn-qemu-int128-emscripten.patch",
+    PATCH_DIR / "unicorn-qemu-timer-emscripten.patch",
+]
 
 
-def run(cmd, cwd=None):
+def run(cmd, cwd=None, env=None):
     print("+", " ".join(cmd))
-    subprocess.run(cmd, cwd=cwd, check=True)
+    subprocess.run(cmd, cwd=cwd, env=env, check=True)
 
 
 def ensure_submodule():
@@ -103,32 +111,33 @@ def suffix_for(targets):
     return "-" + "-".join(sorted(targets))
 
 
-def create_emcc_host_wrapper(build_dir):
-    emcc = shutil.which("emcc")
-    if not emcc:
-        raise RuntimeError("emcc not found. Please install and activate Emscripten SDK first.")
+def apply_emscripten_patches():
+    for patch in UNICORN_PATCHES:
+        if not patch.exists():
+            raise RuntimeError(f"Patch file not found: {patch}")
 
-    wrapper = build_dir / "emcc-host-wrapper.sh"
-    script = f"""#!/usr/bin/env bash
-set -euo pipefail
-REAL_EMCC={json.dumps(emcc)}
-has_dm=0
-has_e=0
-for arg in "$@"; do
-  if [[ "$arg" == "-dM" ]]; then
-    has_dm=1
-  elif [[ "$arg" == "-E" ]]; then
-    has_e=1
-  fi
-done
-if [[ $has_dm -eq 1 && $has_e -eq 1 ]]; then
-  exec "$REAL_EMCC" -U__x86_64__ -U__x86_64 -U__amd64__ -U__amd64 -D__i386__ "$@"
-fi
-exec "$REAL_EMCC" "$@"
-"""
-    wrapper.write_text(script, encoding="utf-8")
-    wrapper.chmod(0o755)
-    return wrapper
+        check = subprocess.run(
+            ["git", "apply", "--check", str(patch)],
+            cwd=UNICORN_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if check.returncode == 0:
+            run(["git", "apply", str(patch)], cwd=UNICORN_DIR)
+            continue
+
+        reverse_check = subprocess.run(
+            ["git", "apply", "--reverse", "--check", str(patch)],
+            cwd=UNICORN_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if reverse_check.returncode == 0:
+            continue
+
+        raise RuntimeError(f"Failed to apply patch {patch}: {check.stderr.strip()}")
 
 
 def generate_constants():
@@ -162,8 +171,6 @@ def configure_and_build_unicorn(targets):
     if not emcmake:
         raise RuntimeError("emcmake not found. Please install and activate Emscripten SDK first.")
 
-    host_wrapper = create_emcc_host_wrapper(build_dir)
-
     cmake_cmd = [
         emcmake,
         "cmake",
@@ -173,13 +180,23 @@ def configure_and_build_unicorn(targets):
         "-DUNICORN_BUILD_TESTS=OFF",
         "-DUNICORN_INSTALL=OFF",
         "-DUNICORN_LEGACY_STATIC_ARCHIVE=ON",
-        f"-DCMAKE_C_COMPILER={host_wrapper}",
     ]
     if targets:
         cmake_cmd.append("-DUNICORN_ARCH=" + ";".join(sorted(targets)))
 
-    run(cmake_cmd, cwd=build_dir)
-    run(["cmake", "--build", ".", "--config", "Release", "-j", str(os.cpu_count() or 4)], cwd=build_dir)
+    env = os.environ.copy()
+    env.pop("NODE", None)
+    if "EM_NODE_JS" not in env:
+        node_bin = shutil.which("node")
+        if node_bin:
+            env["EM_NODE_JS"] = node_bin
+
+    run(cmake_cmd, cwd=build_dir, env=env)
+    run(
+        ["cmake", "--build", ".", "--config", "Release", "-j", str(os.cpu_count() or 4)],
+        cwd=build_dir,
+        env=env,
+    )
 
     static_lib = build_dir / "libunicorn.a"
     if not static_lib.exists():
@@ -220,6 +237,7 @@ def link_to_javascript(static_lib, targets):
 def build(targets):
     validate_targets(targets)
     ensure_submodule()
+    apply_emscripten_patches()
     generate_constants()
     static_lib = configure_and_build_unicorn(targets)
     link_to_javascript(static_lib, targets)
@@ -228,7 +246,7 @@ def build(targets):
 def usage():
     print(f"Usage: {Path(sys.argv[0]).name} <action> [<targets>...]")
     print("Actions:")
-    print("  patch  Generate constants only (legacy compatibility action)")
+    print("  patch  Apply emscripten patches and regenerate constants")
     print("  build  Build unicorn.js with cmake/emscripten")
 
 
@@ -243,8 +261,9 @@ def main():
     try:
         if action == "patch":
             ensure_submodule()
+            apply_emscripten_patches()
             generate_constants()
-            print("Constants regenerated.")
+            print("Patches and constants regenerated.")
             return 0
         if action == "build":
             build(targets)

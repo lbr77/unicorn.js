@@ -1,0 +1,50 @@
+diff --git a/qemu/configure b/qemu/configure
+index cfd344f7..5841d470 100755
+--- a/qemu/configure
++++ b/qemu/configure
+@@ -396,7 +396,9 @@ int main(void) { return 0; }
+ EOF
+ }
+ 
+-if check_define __linux__ ; then
++if check_define __EMSCRIPTEN__ ; then
++  targetos='Emscripten'
++elif check_define __linux__ ; then
+   targetos="Linux"
+ elif check_define _WIN32 ; then
+   targetos='MINGW32'
+@@ -623,6 +625,9 @@ Haiku)
+   QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS $QEMU_CFLAGS"
+   LIBS="-lposix_error_mapper -lnetwork $LIBS"
+ ;;
++Emscripten)
++  supported_os="yes"
++;;
+ Linux)
+   linux="yes"
+   QEMU_INCLUDES="-isystem \$(SRC_PATH)/linux-headers -isystem $PWD/linux-headers $QEMU_INCLUDES"
+@@ -863,6 +868,11 @@ case "$cpu" in
+     # No special flags required for other host CPUs
+ esac
+ 
++if test "$targetos" = "Emscripten"; then
++  CPU_CFLAGS=""
++  QEMU_LDFLAGS=""
++fi
++
+ eval "cross_cc_${cpu}=\$host_cc"
+ cross_cc_vars="$cross_cc_vars cross_cc_${cpu}"
+ QEMU_CFLAGS="$CPU_CFLAGS $QEMU_CFLAGS"
+@@ -1527,7 +1537,11 @@ if compile_prog "" "" ; then
+ elif compile_prog "" "-lm" ; then
+   LIBS="-lm $LIBS"
+ else
+-  error_exit "libm check failed"
++  if test "$targetos" = "Emscripten"; then
++    :
++  else
++    error_exit "libm check failed"
++  fi
+ fi
+ 
+ ##########################################
