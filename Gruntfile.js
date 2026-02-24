@@ -68,6 +68,16 @@ module.exports = function (grunt) {
     });
 
     // Project tasks
+    grunt.registerTask('copyWasmIfExists', function () {
+        var suffix = grunt.config.get('lib.suffix') || '';
+        var wasmPath = 'src/libunicorn' + suffix + '.out.wasm';
+        if (grunt.file.exists(wasmPath)) {
+            grunt.task.run('copy');
+        } else {
+            grunt.log.writeln('Skipping wasm copy, file not found: ' + wasmPath);
+        }
+    });
+
     grunt.registerTask('build', 'Build for specific architecture', function (arch) {
         if (typeof arch === 'undefined') {
             grunt.config.set('lib.suffix', '');
@@ -77,7 +87,7 @@ module.exports = function (grunt) {
             grunt.task.run('exec:emscripten:'+arch);
         }
         grunt.task.run('concat');
-        grunt.task.run('copy');
+        grunt.task.run('copyWasmIfExists');
     });
     grunt.registerTask('release', [
         'build',

@@ -3,3 +3,4 @@ node_modules/
 
 # Emscripten builds
 *.out.js
+dist

@@ -211,17 +211,16 @@ def link_to_javascript(static_lib, targets):
 
     out_suffix = suffix_for(targets)
     output_js = SRC_DIR / f"libunicorn{out_suffix}.out.js"
+    output_wasm = SRC_DIR / f"libunicorn{out_suffix}.out.wasm"
 
     cmd = [
         emcc,
         "-O3",
-        "-Wl,--whole-archive",
         str(static_lib),
-        "-Wl,--no-whole-archive",
         "-sALLOW_MEMORY_GROWTH=1",
         "-sALLOW_TABLE_GROWTH=1",
-        "-sMODULARIZE=1",
         "-sWASM=1",
+        "-sSINGLE_FILE=1",
         "-sWASM_ASYNC_COMPILATION=0",
         "-sWASM_BIGINT=0",
         "-sENVIRONMENT=web",
@@ -232,6 +231,8 @@ def link_to_javascript(static_lib, targets):
         str(output_js),
     ]
     run(cmd, cwd=ROOT_DIR)
+    if output_wasm.exists():
+        output_wasm.unlink()
 
 
 def build(targets):

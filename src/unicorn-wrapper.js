@@ -3,8 +3,48 @@
  * Wrapper made by Alexandro Sanchez Bach.
  */
 
-// Emscripten demodularize
-var MUnicorn = new MUnicorn();
+// Emscripten runtime bootstrap (sync Module and async factory both supported)
+var __MUnicornModule = null;
+var __MUnicornReady = Promise.resolve();
+
+(function () {
+    if (typeof MUnicorn === 'function') {
+        var maybeModule = MUnicorn();
+        if (maybeModule && typeof maybeModule.then === 'function') {
+            __MUnicornReady = maybeModule.then(function (module) {
+                __MUnicornModule = module;
+                return module;
+            });
+            return;
+        }
+        __MUnicornModule = maybeModule;
+        __MUnicornReady = Promise.resolve(maybeModule);
+        return;
+    }
+
+    if (typeof MUnicorn === 'object' && MUnicorn !== null) {
+        __MUnicornModule = MUnicorn;
+        __MUnicornReady = Promise.resolve(MUnicorn);
+        return;
+    }
+
+    if (typeof Module === 'object' && Module !== null) {
+        __MUnicornModule = Module;
+        __MUnicornReady = Promise.resolve(Module);
+        return;
+    }
+
+    __MUnicornReady = Promise.reject('Unicorn.js: failed to initialize Emscripten module');
+})();
+
+var MUnicorn = new Proxy({}, {
+    get: function (_, prop) {
+        if (__MUnicornModule === null) {
+            throw 'Unicorn.js: runtime is not ready yet. Wait for uc.ready before using APIs.';
+        }
+        return __MUnicornModule[prop];
+    }
+});
 
 // Number conversion modes
 ELF_INT_NUMBER  = 1
@@ -12,6 +52,24 @@ ELF_INT_STRING  = 2
 ELF_INT_OBJECT  = 3
 
 var uc = {
+    ready: __MUnicornReady,
+    block_until_ready: function (callback) {
+        if (__MUnicornModule !== null) {
+            if (typeof callback === 'function') {
+                return callback();
+            }
+            return;
+        }
+
+        if (typeof callback === 'function') {
+            return __MUnicornReady.then(function () {
+                return callback();
+            });
+        }
+
+        return __MUnicornReady;
+    },
+
     // Static
     version: function() {
         major_ptr = MUnicorn._malloc(4);
@@ -93,7 +151,7 @@ var uc = {
             var buffer_len = bytes.length;
             var buffer_ptr = MUnicorn._malloc(buffer_len);
             MUnicorn.writeArrayToMemory(bytes, buffer_ptr);
-            
+
             // Convert address types
             var [addr_lo, addr_hi] = this.__address(address);
 
@@ -117,7 +175,7 @@ var uc = {
             for (var i = 0; i < size; i++) {
                 MUnicorn.setValue(buffer_ptr + i, 0, 'i8');
             }
-            
+
             // Convert address types
             var [addr_lo, addr_hi] = this.__address(address);
 
@@ -143,7 +201,7 @@ var uc = {
         this.mem_map = function (address, size, perms) {
             // Convert address types
             var [addr_lo, addr_hi] = this.__address(address);
-            
+
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
             var ret = MUnicorn.ccall('uc_mem_map', 'number',
                 ['pointer', 'number', 'number', 'number', 'number'],
@@ -158,7 +216,7 @@ var uc = {
         this.mem_protect = function (address, size, perms) {
             // Convert address types
             var [addr_lo, addr_hi] = this.__address(address);
-            
+
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
             var ret = MUnicorn.ccall('uc_mem_protect', 'number',
                 ['pointer', 'number', 'number', 'number', 'number'],
@@ -177,7 +235,7 @@ var uc = {
         this.mem_unmap = function (address, size) {
             // Convert address types
             var [addr_lo, addr_hi] = this.__address(address);
-            
+
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
             var ret = MUnicorn.ccall('uc_mem_unmap', 'number',
                 ['pointer', 'number', 'number', 'number'],
@@ -503,7 +561,7 @@ var uc = {
         this.query_i64     = function (type) { return this.query_type(type, 'i64'); }
         this.query_float   = function (type) { return this.query_type(type, 'float'); }
         this.query_double  = function (type) { return this.query_type(type, 'double'); }
-        
+
         // Configuration
         this.get_integer_type = function () {
             // Using ELF_INT_NUMBER as default for 32 bit backward compatibility

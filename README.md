@@ -31,7 +31,7 @@ var e = new uc.Unicorn(uc.ARCH_ARM, uc.MODE_ARM);
 e.reg_write_i32(uc.ARM_REG_R2, 0x456);
 e.reg_write_i32(uc.ARM_REG_R3, 0x123);
 e.mem_map(addr, 4*1024, uc.PROT_ALL);
-e.mem_write(addr, code)
+e.mem_write(addr, code);
 
 // Start emulator
 var begin = addr;
@@ -42,6 +42,8 @@ e.emu_start(begin, until, 0, 0);
 var r0 = e.reg_read_i32(uc.ARM_REG_R0);  // 0x37
 var r1 = e.reg_read_i32(uc.ARM_REG_R1);  // 0x333
 ```
+
+If you load unicorn.js in an async module pipeline, use `uc.block_until_ready(function () { ... })` or `uc.ready.then(...)`.
 
 ## Building
 Unicorn.js now builds Unicorn via CMake, following Unicorn's `docs/COMPILE.md` workflow.
@@ -57,4 +59,5 @@ Unicorn.js now builds Unicorn via CMake, following Unicorn's `docs/COMPILE.md` w
    - `npm install -g grunt-cli`
 6. Build:
    - `grunt build`
+   - `grunt build:arm` (ARM-only build, outputs `dist/unicorn-arm.min.js`)
    - (optional) `grunt release` for all configured architectures.
