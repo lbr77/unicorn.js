@@ -86,6 +86,7 @@ UNICORN_PATCHES = [
     PATCH_DIR / "unicorn-qemu-configure-emscripten.patch",
     PATCH_DIR / "unicorn-qemu-int128-emscripten.patch",
     PATCH_DIR / "unicorn-qemu-timer-emscripten.patch",
+    PATCH_DIR / "unicorn-qemu-oslib-posix-emscripten.patch",
 ]
 
 

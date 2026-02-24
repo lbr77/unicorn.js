@@ -1,0 +1,34 @@
+diff --git a/qemu/util/oslib-posix.c b/qemu/util/oslib-posix.c
+index 615e477e..5e2c27a9 100644
+--- a/qemu/util/oslib-posix.c
++++ b/qemu/util/oslib-posix.c
+@@ -117,6 +117,20 @@ void *qemu_anon_ram_alloc(struct uc_struct *uc, size_t size, uint64_t *alignment
+     if (ptr && alignment) {
+         *alignment = MAX(get_allocation_granularity(), getpagesize());
+     }
++    return ptr;
++#elif defined(__EMSCRIPTEN__)
++    size_t align = QEMU_VMALLOC_ALIGN;
++    size_t alloc_size = QEMU_ALIGN_UP(size, align);
++    void *ptr = NULL;
++
++    if (posix_memalign(&ptr, align, alloc_size) != 0) {
++        return NULL;
++    }
++
++    if (alignment) {
++        *alignment = align;
++    }
++
+     return ptr;
+ #else
+     size_t align = QEMU_VMALLOC_ALIGN;
+@@ -153,6 +167,8 @@ void qemu_anon_ram_free(struct uc_struct *uc, void *ptr, size_t size)
+     if (ptr) {
+         VirtualFree(ptr, 0, MEM_RELEASE);
+     }
++#elif defined(__EMSCRIPTEN__)
++    free(ptr);
+ #else
+     //trace_qemu_anon_ram_free(ptr, size);
+     qemu_ram_munmap(uc, ptr, size);

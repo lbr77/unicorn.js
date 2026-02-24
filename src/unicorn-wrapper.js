@@ -157,10 +157,13 @@ var uc = {
 
             // Write to memory
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
-            var ret = MUnicorn.ccall('uc_mem_write', 'number',
-                ['pointer', 'number', 'number', 'pointer', 'number'],
-                [handle, addr_lo, addr_hi, buffer_ptr, buffer_len]
-            );
+            var fn = MUnicorn._uc_mem_write;
+            var ret;
+            if (fn.length >= 6) {
+                ret = fn(handle, addr_lo, addr_hi, buffer_ptr, buffer_len >>> 0, 0);
+            } else {
+                ret = fn(handle, addr_lo, addr_hi, buffer_ptr, buffer_len >>> 0);
+            }
             // Free memory and handle return code
             MUnicorn._free(buffer_ptr);
             if (ret != uc.ERR_OK) {
@@ -181,10 +184,13 @@ var uc = {
 
             // Read from memory
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
-            var ret = MUnicorn.ccall('uc_mem_read', 'number',
-                ['pointer', 'number', 'number', 'pointer', 'number'],
-                [handle, addr_lo, addr_hi, buffer_ptr, size]
-            );
+            var fn = MUnicorn._uc_mem_read;
+            var ret;
+            if (fn.length >= 6) {
+                ret = fn(handle, addr_lo, addr_hi, buffer_ptr, size >>> 0, 0);
+            } else {
+                ret = fn(handle, addr_lo, addr_hi, buffer_ptr, size >>> 0);
+            }
             // Get register value, free memory and handle return code
             var buffer = new Uint8Array(size);
             for (var i = 0; i < size; i++) {
@@ -203,10 +209,13 @@ var uc = {
             var [addr_lo, addr_hi] = this.__address(address);
 
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
-            var ret = MUnicorn.ccall('uc_mem_map', 'number',
-                ['pointer', 'number', 'number', 'number', 'number'],
-                [handle, addr_lo, addr_hi, size, perms]
-            );
+            var fn = MUnicorn._uc_mem_map;
+            var ret;
+            if (fn.length >= 6) {
+                ret = fn(handle, addr_lo, addr_hi, size >>> 0, 0, perms >>> 0);
+            } else {
+                ret = fn(handle, addr_lo, addr_hi, size >>> 0, perms >>> 0);
+            }
             if (ret != uc.ERR_OK) {
                 var error = 'Unicorn.js: Function uc_mem_map failed with code ' + ret + ':\n' + uc.strerror(ret);
                 throw error;
@@ -218,10 +227,13 @@ var uc = {
             var [addr_lo, addr_hi] = this.__address(address);
 
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
-            var ret = MUnicorn.ccall('uc_mem_protect', 'number',
-                ['pointer', 'number', 'number', 'number', 'number'],
-                [handle, addr_lo, addr_hi, size, perms]
-            );
+            var fn = MUnicorn._uc_mem_protect;
+            var ret;
+            if (fn.length >= 6) {
+                ret = fn(handle, addr_lo, addr_hi, size >>> 0, 0, perms >>> 0);
+            } else {
+                ret = fn(handle, addr_lo, addr_hi, size >>> 0, perms >>> 0);
+            }
             if (ret != uc.ERR_OK) {
                 var error = 'Unicorn.js: Function uc_mem_protect failed with code ' + ret + ':\n' + uc.strerror(ret);
                 throw error;
@@ -237,10 +249,13 @@ var uc = {
             var [addr_lo, addr_hi] = this.__address(address);
 
             var handle = MUnicorn.getValue(this.handle_ptr, '*');
-            var ret = MUnicorn.ccall('uc_mem_unmap', 'number',
-                ['pointer', 'number', 'number', 'number'],
-                [handle, addr_lo, addr_hi, size]
-            );
+            var fn = MUnicorn._uc_mem_unmap;
+            var ret;
+            if (fn.length >= 5) {
+                ret = fn(handle, addr_lo, addr_hi, size >>> 0, 0);
+            } else {
+                ret = fn(handle, addr_lo, addr_hi, size >>> 0);
+            }
             if (ret != uc.ERR_OK) {
                 var error = 'Unicorn.js: Function uc_mem_unmap failed with code ' + ret + ':\n' + uc.strerror(ret);
                 throw error;
@@ -441,7 +456,9 @@ var uc = {
         }
         this.__address = function (address) {
             var address_obj = new ElfUInt64(address);
-            return [address_obj.chunks[0] + (address_obj.chunks[1]<<16), address_obj.chunks[2] + (address_obj.chunks[3]<<16)];
+            var lo = (address_obj.chunks[0] + (address_obj.chunks[1] << 16)) >>> 0;
+            var hi = (address_obj.chunks[2] + (address_obj.chunks[3] << 16)) >>> 0;
+            return [lo, hi];
         }
         this._sizeof = function (type) {
             switch (type) {
